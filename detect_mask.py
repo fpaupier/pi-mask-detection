@@ -35,7 +35,7 @@ def draw_objects(draw, objs, labels):
                   fill='red')
 
 
-def get_image():
+def get_image(img_path):
     """
     Get the next image to process for the pipeline.
 
@@ -43,6 +43,7 @@ def get_image():
     Returns:
 
     """
+    return Image.open(img_path)
 
 
 def main():
@@ -59,40 +60,41 @@ def main():
     parser.add_argument('-c', '--count', type=int, default=5,
                         help='Number of times to run inference')
     args = parser.parse_args()
+    labels = {}
 
     # Get camera feed
-    img = get_image()
-    labels = {}
+    image = get_image(img_path=args.input)
+
     # Apply face detection
     interpreter = make_interpreter(args.model)
     interpreter.allocate_tensors()
 
-    image = Image.open(args.input)
     scale = detect.set_input(interpreter, image.size,
                              lambda size: image.resize(size, Image.ANTIALIAS))
     start = time.perf_counter()
     interpreter.invoke()
     inference_time = time.perf_counter() - start
-    objs = detect.get_output(interpreter, args.threshold, scale)
+    faces = detect.get_output(interpreter, args.threshold, scale)
     print('%.2f ms' % (inference_time * 1000))
     print('-------RESULTS--------')
-    if not objs:
+    if not faces:
         print('No Faces detected')
 
-    for obj in objs:
-        print(labels.get(obj.id, obj.id))
-        print('  id:    ', obj.id)
-        print('  score: ', obj.score)
-        print('  bbox:  ', obj.bbox)
+    for face in faces:
+        print('  Face    ')
+        print('  score: ', face.score)
+        print('  bbox:  ', face.bbox)
 
     if args.output:
         image = image.convert('RGB')
-        draw_objects(ImageDraw.Draw(image), objs, labels)
+        draw_objects(ImageDraw.Draw(image), faces, labels)
         image.save(args.output)
         image.show()
 
     # Apply mask / no mask binary classifier
     pass
+
+    return
 
 
 if __name__ == '__main__':
