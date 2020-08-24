@@ -1,2 +1,9 @@
+image==1.5.32
 numpy==1.19.1
+Pillow==7.2.0
+pyaml==20.4.0
+pytz==2020.1
+PyYAML==5.3.1
+six==1.15.0
+sqlparse==0.3.1
 tflite-runtime==2.1.0.post1
