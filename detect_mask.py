@@ -1,6 +1,9 @@
 import argparse
 import datetime
+import os
+import sys
 import time
+import yaml
 
 import numpy as np
 
@@ -17,6 +20,14 @@ EDGETPU_SHARED_LIB = {
     'Darwin': 'libedgetpu.1.dylib',
     'Windows': 'edgetpu.dll'
 }[platform.system()]
+
+cur_dir: str = sys.path[0]
+CONFIG_PATH: str = os.path.join(cur_dir, "config.yaml")
+with open(CONFIG_PATH, 'r') as f:
+    operational_config = yaml.safe_load(f)
+if 'device' not in operational_config:
+    raise Exception("Failed to load configuration")
+
 
 def load_labels(filename):
     with open(filename, 'r') as f:
@@ -56,24 +67,21 @@ def get_image(img_path):
 
 
 def main():
+    face_model = operational_config['models']['face_detection']['model']
+    face_threshold = operational_config['models']['face_detection']['threshold']
+    mask_model = operational_config['models']['mask_classifier']['model']
+    mask_labels = operational_config['models']['mask_classifier']['labels']
+    mask_threshold = operational_config['models']['mask_classifier']['threshold']
+    mask_model_guid: str = operational_config['models']['mask_classifier']['guid']
+    face_model_guid: str = operational_config['models']['face_detection']['guid']
+    device: dict = operational_config["device"]
+
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-f', '--face_model', required=True,
-                        help='File path of face detection .tflite file.')
-    parser.add_argument('-m', '--mask_model', required=True,
-                        help='File path of mask/no mask binary classifier model .tflite file.')
-    parser.add_argument('-d', '--mask_dict', required=True,
-                        help='File path of the dict for the binary classifier')
     parser.add_argument('-i', '--input', required=True,
                         help='File path of image to process.')
-    parser.add_argument('-t', '--face_threshold', type=float, default=0.4,
-                        help='Score threshold for detected objects.')
     parser.add_argument('-o', '--output',
                         help='File path for the result image with annotations')
-    parser.add_argument('-c', '--count', type=int, default=5,
-                        help='Number of times to run inference')
-    parser.add_argument('-l', '--mask_threshold', type=float, default=0.80,
-                        help='Threshold value upon which we should raise an alert')
     args = parser.parse_args()
     labels = {}
 
@@ -81,7 +89,7 @@ def main():
     image = get_image(img_path=args.input)
 
     # Apply face detection
-    interpreter = make_interpreter(args.face_model)
+    interpreter = make_interpreter(face_model)
     interpreter.allocate_tensors()
 
     scale = detect.set_input(interpreter, image.size,
@@ -89,7 +97,7 @@ def main():
     start = time.perf_counter()
     interpreter.invoke()
     inference_time = time.perf_counter() - start
-    faces = detect.get_output(interpreter, args.face_threshold, scale)
+    faces = detect.get_output(interpreter, face_threshold, scale)
     print('%.2f ms' % (inference_time * 1000))
     print('-------RESULTS--------')
     if not faces:
@@ -110,7 +118,7 @@ def main():
     # For each face in the image crop around the ROI and detect if mask or not mask
 
     # Apply mask / no mask classifier
-    mask_interpreter = make_interpreter(args.mask_model)
+    mask_interpreter = make_interpreter(mask_model)
     mask_interpreter.allocate_tensors()
     input_details = mask_interpreter.get_input_details()
     output_details = mask_interpreter.get_output_details()
@@ -138,7 +146,7 @@ def main():
         results = np.squeeze(output_data)
 
         top_k = results.argsort()[-5:][::-1]
-        labels = load_labels(args.mask_dict)
+        labels = load_labels(mask_labels)
 
         shall_raise_alert = False
         for i in top_k:
@@ -148,7 +156,7 @@ def main():
                 res = float(results[i])
             else:
                 res = float(results[i] / 255.0)
-            if res < args.mask_threshold:
+            if res < mask_threshold:
                 break
             shall_raise_alert = True
             print('Alert: no mask with probability {:08.6f}: {}'.format(res, labels[i]))
@@ -156,13 +164,13 @@ def main():
         if not shall_raise_alert:
             pass  # TODO: add a break statement to get to new frame acquisition
 
-        alert = Alert(device="pi",
+        alert = Alert(device=device['type'] + ' ' + device["guid"],
                       img=region,
                       prob=res,
                       location=(42.3602534, -71.0582912),
                       utc_ts=datetime.datetime.utcnow(),
-                      face_detection_model=args.face_model,
-                      mask_classifier_model=args.mask_model)
+                      face_detection_model=face_model + ' ' + face_model_guid,
+                      mask_classifier_model=mask_model + ' ' + mask_model_guid)
         print(alert)
         print('time: {:.3f}ms'.format((stop_time - start_time) * 1000))
 
