@@ -9,8 +9,13 @@ deployment:
   longitude: -71.0582912
 
 models:
-  face_detection: "models/ssd_mobilenet_v2_face_quant_postprocess_edgetpu.tflite"
+  face_detection:
+    model: "models/ssd_mobilenet_v2_face_quant_postprocess_edgetpu.tflite"
+    guid: 325243dd-fc24-41f3-afcb-7a547fa25ddc
+    threshold: 0.4
   mask_classifier:
     model: "models/mask_detector/edgetpu_model.tflite"
+    guid: 78d361c4-0dcb-45c4-8fc5-79c7d1f374ad
     labels: "models/mask_detector/dict.txt"
+    threshold: 0.8
 
