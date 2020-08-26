@@ -4,6 +4,7 @@ import io
 import os
 import sys
 import time
+import sqlite3
 import yaml
 
 import numpy as np
@@ -14,6 +15,8 @@ import tflite_runtime.interpreter as tflite
 import platform
 
 import alert_pb2
+
+conn = sqlite3.connect('alert.db')
 
 EDGETPU_SHARED_LIB = {
     'Linux': 'libedgetpu.so.1',
@@ -30,6 +33,12 @@ if 'device' not in operational_config:
 
 DATE_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
 
+
+def image_to_byte_array(image: Image, format: str = "jpeg"):
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format=format)
+    img_byte_arr = img_byte_arr.getvalue()
+    return img_byte_arr
 
 def load_labels(filename):
     with open(filename, 'r') as f:
@@ -57,14 +66,8 @@ def get_image(img_path):
     return Image.open(img_path)
 
 
-def image_to_byte_array(image: Image, format: str = "jpeg"):
-    img_byte_arr = io.BytesIO()
-    image.save(img_byte_arr, format=format)
-    img_byte_arr = img_byte_arr.getvalue()
-    return img_byte_arr
-
-
 def main():
+
     face_model = operational_config['models']['face_detection']['model']
     face_threshold = operational_config['models']['face_detection']['threshold']
     mask_model = operational_config['models']['mask_classifier']['model']
@@ -82,7 +85,6 @@ def main():
     parser.add_argument('-o', '--output',
                         help='File path for the result image with annotations')
     args = parser.parse_args()
-    labels = {}
 
     # Get camera feed
     image = get_image(img_path=args.input)
@@ -177,13 +179,21 @@ def main():
         alert.probability = res
 
         alert.image.format = "jpeg"
-        alert.image.size.width = region.size[0]
-        alert.image.size.height = region.size[1]
-        alert.image.data = image_to_byte_array(region)
+        region_width: int = region.size[0]
+        region_height: int = region.size[1]
+        image_data = image_to_byte_array(region)
 
-        with open("serializedAlert", "wb+") as fd:
-            fd.write(alert.SerializeToString())
+        cursor = conn.cursor()
+        event_time: str = datetime.datetime.utcnow().strftime(DATE_FORMAT)
+        vals = (event_time, device['type'], device['guid'], deployment['deployed_on'], deployment['longitude'], deployment['latitude'], face_model, face_model_guid, face_threshold, mask_model, mask_model_guid, mask_threshold, res, "jpeg", region_width, region_height, image_data)
+        cursor.execute(
+            '''INSERT INTO 
+                alert (created_at, device_type, device_id, device_deployed_on, longitude, latitude, face_model_name, face_model_guid, face_model_threshold, mask_model_name, mask_model_guid, mask_model_threshold, probability, image_format, image_width, image_height, image_data) 
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) '''
+            , vals)
+        conn.commit()
 
+    conn.close()
     return
 
 
