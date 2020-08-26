@@ -32,8 +32,14 @@ message Alert {
   float probability = 6;
 
   message Image {
-    string format =1;
-    bytes data = 2;
+
+    message Size {
+      int32 width = 1;
+      int32 height = 2;
+    }
+    string format = 1;
+    Size size = 2;
+    bytes data = 3;
   }
   Image image = 7;
 }
