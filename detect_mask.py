@@ -13,7 +13,7 @@ from PIL import ImageDraw
 import tflite_runtime.interpreter as tflite
 import platform
 
-from alert import Alert
+import alert_pb2
 
 EDGETPU_SHARED_LIB = {
     'Linux': 'libedgetpu.so.1',
@@ -27,6 +27,8 @@ with open(CONFIG_PATH, 'r') as f:
     operational_config = yaml.safe_load(f)
 if 'device' not in operational_config:
     raise Exception("Failed to load configuration")
+
+DATE_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
 
 
 def load_labels(filename):
@@ -75,6 +77,7 @@ def main():
     mask_model_guid: str = operational_config['models']['mask_classifier']['guid']
     face_model_guid: str = operational_config['models']['face_detection']['guid']
     device: dict = operational_config["device"]
+    deployment: dict = operational_config["deployment"]
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -164,14 +167,37 @@ def main():
         if not shall_raise_alert:
             pass  # TODO: add a break statement to get to new frame acquisition
 
-        alert = Alert(device=device['type'] + ' ' + device["guid"],
-                      img=region,
-                      prob=res,
-                      location=(42.3602534, -71.0582912),
-                      utc_ts=datetime.datetime.utcnow(),
-                      face_detection_model=face_model + ' ' + face_model_guid,
-                      mask_classifier_model=mask_model + ' ' + mask_model_guid)
-        print(alert)
+        alert = alert_pb2.Alert()
+
+        alert.event_time = datetime.datetime.utcnow().strftime(DATE_FORMAT)
+
+        alert.created_by.type = device["type"]
+        alert.created_by.guid = device["guid"]
+        alert.created_by.enrolled_on = device["enrolled_on"]
+
+        alert.location.latitude = deployment["latitude"]
+        alert.location.longitude = deployment["longitude"]
+
+        alert.face_detection_model.name = face_model
+        alert.face_detection_model.guid = face_model_guid
+        alert.face_detection_model.threshold = face_threshold
+
+        alert.mask_classifier_model.name = mask_model
+        alert.mask_classifier_model.guid = mask_model_guid
+        alert.mask_classifier_model.threshold = mask_threshold
+
+        alert.probability = res
+
+        alert.image = bytes("here should be the image", encoding='utf-8')
+
+        with open("serializedAlert", "wb+") as fd:
+            fd.write(alert.SerializeToString())
+
+        recovered_alert = alert_pb2.Alert()
+        with open("serializedAlert", 'rb') as fd:
+            recovered_alert.ParseFromString(fd.read())
+
+        print(recovered_alert)
         print('time: {:.3f}ms'.format((stop_time - start_time) * 1000))
 
     return
