@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import io
 import os
 import sys
 import time
@@ -66,6 +67,13 @@ def get_image(img_path):
 
     """
     return Image.open(img_path)
+
+
+def image_to_byte_array(image: Image, format: str = "jpeg"):
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format=format)
+    img_byte_arr = img_byte_arr.getvalue()
+    return img_byte_arr
 
 
 def main():
@@ -188,7 +196,8 @@ def main():
 
         alert.probability = res
 
-        alert.image = bytes("here should be the image", encoding='utf-8')
+        alert.image.format = "jpeg"
+        alert.image.data = image_to_byte_array(region)
 
         with open("serializedAlert", "wb+") as fd:
             fd.write(alert.SerializeToString())
