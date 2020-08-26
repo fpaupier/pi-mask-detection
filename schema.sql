@@ -1,5 +1,5 @@
 CREATE TABLE alert (
-    id text primary key not null,
+    id integer primary key autoincrement not null,
     created_at text not null,
     device_type text not null,
     device_id text not null,
@@ -18,3 +18,6 @@ CREATE TABLE alert (
     image_height int not null,
     image_data blob not null
 );
+
+
+SELECT * from alert;
