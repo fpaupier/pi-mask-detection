@@ -10,7 +10,6 @@ import numpy as np
 
 import detect
 from PIL import Image
-from PIL import ImageDraw
 import tflite_runtime.interpreter as tflite
 import platform
 
