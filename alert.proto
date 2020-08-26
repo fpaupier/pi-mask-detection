@@ -31,5 +31,9 @@ message Alert {
 
   float probability = 6;
 
-  bytes image = 7;
+  message Image {
+    string format =1;
+    bytes data = 2;
+  }
+  Image image = 7;
 }
