@@ -185,14 +185,6 @@ def main():
         with open("serializedAlert", "wb+") as fd:
             fd.write(alert.SerializeToString())
 
-        # To use to read the image
-        # recovered_alert = alert_pb2.Alert()
-        # with open("serializedAlert", 'rb') as fd:
-        #     recovered_alert.ParseFromString(fd.read())
-        #
-        # print(recovered_alert)
-        # img = Image.open(io.BytesIO(alert.image.data))
-
     return
 
 
