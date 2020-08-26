@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package maskDetection;
+
+message Alert {
+
+  string event_time = 1;
+
+  message Device {
+    string type = 1;
+    string guid = 2;
+    string enrolled_on = 3;
+  }
+  Device created_by = 2;
+
+  message Location {
+    float longitude = 1;
+    float latitude = 2;
+  }
+
+  Location location = 3;
+
+  message Model {
+    string name = 1;
+    string guid = 2;
+    float threshold = 3;
+  }
+
+  Model face_detection_model = 4;
+  Model mask_classifier_model = 5;
+
+  float probability = 6;
+
+  bytes image = 7;
+}
