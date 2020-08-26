@@ -124,7 +124,6 @@ def main():
         image = image.convert('RGB')
         draw_objects(ImageDraw.Draw(image), faces, labels)
         image.save(args.output)
-        image.show()
 
     # For each face in the image crop around the ROI and detect if mask or not mask
 
@@ -141,7 +140,6 @@ def main():
         height = input_details[0]['shape'][1]
         width = input_details[0]['shape'][2]
         region = image.crop(face.bbox).resize((width, height))
-        region.show()
         input_data = np.expand_dims(region, axis=0)
 
         if floating_model:
@@ -149,9 +147,7 @@ def main():
 
         mask_interpreter.set_tensor(input_details[0]['index'], input_data)
 
-        start_time = time.time()
         mask_interpreter.invoke()
-        stop_time = time.time()
 
         output_data = mask_interpreter.get_tensor(output_details[0]['index'])
         results = np.squeeze(output_data)
@@ -197,17 +193,20 @@ def main():
         alert.probability = res
 
         alert.image.format = "jpeg"
+        alert.image.size.width = region.size[0]
+        alert.image.size.height = region.size[1]
         alert.image.data = image_to_byte_array(region)
 
         with open("serializedAlert", "wb+") as fd:
             fd.write(alert.SerializeToString())
 
-        recovered_alert = alert_pb2.Alert()
-        with open("serializedAlert", 'rb') as fd:
-            recovered_alert.ParseFromString(fd.read())
-
-        print(recovered_alert)
-        print('time: {:.3f}ms'.format((stop_time - start_time) * 1000))
+        # To use to read the image
+        # recovered_alert = alert_pb2.Alert()
+        # with open("serializedAlert", 'rb') as fd:
+        #     recovered_alert.ParseFromString(fd.read())
+        #
+        # print(recovered_alert)
+        # img = Image.open(io.BytesIO(alert.image.data))
 
     return
 
