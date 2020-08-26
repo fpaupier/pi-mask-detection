@@ -1,5 +1,6 @@
 CREATE TABLE alert (
     id integer primary key autoincrement not null,
+    sent int not null,
     created_at text not null,
     device_type text not null,
     device_id text not null,

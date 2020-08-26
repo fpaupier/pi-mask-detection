@@ -16,6 +16,8 @@ import platform
 
 import alert_pb2
 
+ALERT_NOT_SENT: int = 0  # int used as a bool to mean that an alert and new and has not been sent over the wire yet.
+
 conn = sqlite3.connect("alert.db")
 
 EDGETPU_SHARED_LIB = {
@@ -189,10 +191,11 @@ def main():
         region_width: int = region.size[0]
         region_height: int = region.size[1]
         image_data = image_to_byte_array(region)
-
+        start_time = time.perf_counter()
         cursor = conn.cursor()
         event_time: str = datetime.datetime.utcnow().strftime(DATE_FORMAT)
         vals = (
+            ALERT_NOT_SENT,
             event_time,
             device["type"],
             device["guid"],
@@ -213,11 +216,12 @@ def main():
         )
         cursor.execute(
             """INSERT INTO 
-                alert (created_at, device_type, device_id, device_deployed_on, longitude, latitude, face_model_name, face_model_guid, face_model_threshold, mask_model_name, mask_model_guid, mask_model_threshold, probability, image_format, image_width, image_height, image_data) 
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) """,
+                alert (sent, created_at, device_type, device_id, device_deployed_on, longitude, latitude, face_model_name, face_model_guid, face_model_threshold, mask_model_name, mask_model_guid, mask_model_threshold, probability, image_format, image_width, image_height, image_data) 
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) """,
             vals,
         )
         conn.commit()
+        print(f"DB commit took {(time.perf_counter()-start_time)*1000} ms")
 
     conn.close()
     return
