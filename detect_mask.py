@@ -48,12 +48,12 @@ def image_to_byte_array(image: Image, fmt: str = "jpeg"):
     return img_byte_arr
 
 
-def load_labels(filename):
+def load_labels(filename: str):
     with open(filename, "r") as f:
         return [line.strip() for line in f.readlines()]
 
 
-def make_interpreter(model_file):
+def make_interpreter(model_file: str):
     model_file, *device = model_file.split("@")
     return tflite.Interpreter(
         model_path=model_file,
