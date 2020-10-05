@@ -6,6 +6,8 @@ import sys
 import time
 import sqlite3
 import yaml
+from picamera import PiCamera
+
 
 import numpy as np
 
@@ -16,8 +18,11 @@ import platform
 
 import alert_pb2
 
+ON_DEVICE: bool = True
 ALERT_NOT_SENT: int = 0  # int used as a bool to mean that an alert and new and has not been sent over the wire yet.
 
+camera = PiCamera()
+camera.rotation = 180  #in degrees, adjust based on your setup
 conn = sqlite3.connect("alert.db")
 
 EDGETPU_SHARED_LIB = {
@@ -65,9 +70,11 @@ def get_image(img_path):
     Get the next image to process for the pipeline.
 
     Fixme: In the first version, load an image from disk. Ultimately, reads from Pi camera feed.
-    Returns:
+    Returns: the image opened
 
     """
+    if ON_DEVICE:
+        camera.capture(img_path)
     return Image.open(img_path)
 
 
@@ -87,10 +94,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "-i", "--input", required=True, help="File path of image to process."
-    )
-    parser.add_argument(
-        "-o", "--output", help="File path for the result image with annotations"
+        "-i", "--input", required=True, help="File path of image to process. On edge devise, the path where temp images are stored."
     )
     args = parser.parse_args()
 
