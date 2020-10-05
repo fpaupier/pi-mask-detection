@@ -36,9 +36,9 @@ if "device" not in operational_config:
 DATE_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
 
 
-def image_to_byte_array(image: Image, format: str = "jpeg"):
+def image_to_byte_array(image: Image, fmt: str = "jpeg"):
     img_byte_arr = io.BytesIO()
-    image.save(img_byte_arr, format=format)
+    image.save(img_byte_arr, format=fmt)
     img_byte_arr = img_byte_arr.getvalue()
     return img_byte_arr
 
