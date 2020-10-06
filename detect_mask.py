@@ -4,7 +4,6 @@ import io
 import os
 import sys
 import time
-import sqlite3
 import yaml
 from picamera import PiCamera
 
@@ -17,13 +16,17 @@ import tflite_runtime.interpreter as tflite
 import platform
 
 import alert_pb2
+from db import LocalDB
+
 
 ON_DEVICE: bool = True
 ALERT_NOT_SENT: int = 0  # int used as a bool to mean that an alert and new and has not been sent over the wire yet.
+SLEEP_TIME: int = 1  # second
 
 camera = PiCamera()
-camera.rotation = 180  #in degrees, adjust based on your setup
-conn = sqlite3.connect("alert.db")
+camera.rotation = 180  # in degrees, adjust based on your setup
+
+db = LocalDB()
 
 EDGETPU_SHARED_LIB = {
     "Linux": "libedgetpu.so.1",
@@ -69,7 +72,6 @@ def get_image(img_path):
     """
     Get the next image to process for the pipeline.
 
-    Fixme: In the first version, load an image from disk. Ultimately, reads from Pi camera feed.
     Returns: the image opened
 
     """
@@ -94,141 +96,150 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "-i", "--input", required=True, help="File path of image to process. On edge devise, the path where temp images are stored."
+        "-i",
+        "--input",
+        required=True,
+        help="File path of image to process. On edge devise, the path where temp images are stored.",
     )
     args = parser.parse_args()
+    conn = db.conn
 
-    # Get camera feed
-    image = get_image(img_path=args.input)
+    while True:
+        # Get camera feed
+        image = get_image(img_path=args.input)
 
-    # Apply face detection
-    interpreter = make_interpreter(face_model)
-    interpreter.allocate_tensors()
+        # Apply face detection
+        interpreter = make_interpreter(face_model)
+        interpreter.allocate_tensors()
 
-    scale = detect.set_input(
-        interpreter, image.size, lambda size: image.resize(size, Image.ANTIALIAS)
-    )
-    start = time.perf_counter()
-    interpreter.invoke()
-    inference_time = time.perf_counter() - start
-    faces = detect.get_output(interpreter, face_threshold, scale)
-    print("%.2f ms" % (inference_time * 1000))
-    print("-------RESULTS--------")
-    if not faces:
-        print("No Faces detected")
-        # TODO/ here add a break statement to come back to acquire a new frame
+        scale = detect.set_input(
+            interpreter, image.size, lambda size: image.resize(size, Image.ANTIALIAS)
+        )
+        start = time.perf_counter()
+        interpreter.invoke()
+        inference_time = time.perf_counter() - start
+        faces = detect.get_output(interpreter, face_threshold, scale)
+        print("Face detection inference took: %.2f ms" % (inference_time * 1000))
+        if not faces:
+            print("No Faces detected")
+            time.sleep(SLEEP_TIME)
 
-    for face in faces:
-        print("  Face    ")
-        print("  score: ", face.score)
-        print("  bbox:  ", face.bbox)
+        print("-------RESULTS--------")
+        for face in faces:
+            print("  Face    ")
+            print("  score: ", face.score)
+            print("  bbox:  ", face.bbox)
 
-    image = image.convert("RGB")
-    # For each face in the image crop around the ROI and detect if mask or not mask
+        image = image.convert("RGB")
+        # For each face in the image crop around the ROI and detect if mask or not mask
 
-    # Apply mask / no mask classifier
-    mask_interpreter = make_interpreter(mask_model)
-    mask_interpreter.allocate_tensors()
-    input_details = mask_interpreter.get_input_details()
-    output_details = mask_interpreter.get_output_details()
+        # Apply mask / no mask classifier
+        mask_interpreter = make_interpreter(mask_model)
+        mask_interpreter.allocate_tensors()
+        input_details = mask_interpreter.get_input_details()
+        output_details = mask_interpreter.get_output_details()
 
-    # check the type of the input tensor
-    floating_model = input_details[0]["dtype"] == np.float32
+        # check the type of the input tensor
+        floating_model = input_details[0]["dtype"] == np.float32
 
-    for face in faces:
-        height = input_details[0]["shape"][1]
-        width = input_details[0]["shape"][2]
-        region = image.crop(face.bbox).resize((width, height))
-        input_data = np.expand_dims(region, axis=0)
+        for face in faces:
+            height = input_details[0]["shape"][1]
+            width = input_details[0]["shape"][2]
+            region = image.crop(face.bbox).resize((width, height))
+            input_data = np.expand_dims(region, axis=0)
 
-        if floating_model:
-            input_data = (np.float32(input_data) - args.input_mean) / args.input_std
-
-        mask_interpreter.set_tensor(input_details[0]["index"], input_data)
-
-        mask_interpreter.invoke()
-
-        output_data = mask_interpreter.get_tensor(output_details[0]["index"])
-        results = np.squeeze(output_data)
-
-        top_k = results.argsort()[-5:][::-1]
-        labels = load_labels(mask_labels)
-
-        shall_raise_alert = False
-        for i in top_k:
-            if labels[i] != "no_mask":
-                break
             if floating_model:
-                res = float(results[i])
-            else:
-                res = float(results[i] / 255.0)
-            if res < mask_threshold:
-                break
-            shall_raise_alert = True
-            print("Alert: no mask with probability {:08.6f}: {}".format(res, labels[i]))
+                input_data = (np.float32(input_data) - args.input_mean) / args.input_std
 
-        if not shall_raise_alert:
-            pass  # TODO: add a break statement to get to new frame acquisition
+            mask_interpreter.set_tensor(input_details[0]["index"], input_data)
 
-        alert = alert_pb2.Alert()
+            mask_interpreter.invoke()
 
-        alert.event_time = datetime.datetime.utcnow().strftime(DATE_FORMAT)
+            output_data = mask_interpreter.get_tensor(output_details[0]["index"])
+            results = np.squeeze(output_data)
 
-        alert.created_by.type = device["type"]
-        alert.created_by.guid = device["guid"]
-        alert.created_by.enrolled_on = device["enrolled_on"]
+            top_k = results.argsort()[-5:][::-1]
+            labels = load_labels(mask_labels)
 
-        alert.location.latitude = deployment["latitude"]
-        alert.location.longitude = deployment["longitude"]
+            shall_raise_alert = False
+            for i in top_k:
+                if labels[i] != "no_mask":
+                    break
+                if floating_model:
+                    res = float(results[i])
+                else:
+                    res = float(results[i] / 255.0)
+                if res < mask_threshold:
+                    break
+                shall_raise_alert = True
+                print(
+                    "Alert: no mask with probability {:08.6f}: {}".format(
+                        res, labels[i]
+                    )
+                )
 
-        alert.face_detection_model.name = face_model
-        alert.face_detection_model.guid = face_model_guid
-        alert.face_detection_model.threshold = face_threshold
+            if not shall_raise_alert:
+                print("no alerts to raise")
+                time.sleep(SLEEP_TIME)
+                continue
 
-        alert.mask_classifier_model.name = mask_model
-        alert.mask_classifier_model.guid = mask_model_guid
-        alert.mask_classifier_model.threshold = mask_threshold
+            alert = alert_pb2.Alert()
 
-        alert.probability = res
+            alert.event_time = datetime.datetime.utcnow().strftime(DATE_FORMAT)
 
-        alert.image.format = "jpeg"
-        region_width: int = region.size[0]
-        region_height: int = region.size[1]
-        image_data = image_to_byte_array(region)
-        start_time = time.perf_counter()
-        cursor = conn.cursor()
-        event_time: str = datetime.datetime.utcnow().strftime(DATE_FORMAT)
-        vals = (
-            ALERT_NOT_SENT,
-            event_time,
-            device["type"],
-            device["guid"],
-            deployment["deployed_on"],
-            deployment["longitude"],
-            deployment["latitude"],
-            face_model,
-            face_model_guid,
-            face_threshold,
-            mask_model,
-            mask_model_guid,
-            mask_threshold,
-            res,
-            "jpeg",
-            region_width,
-            region_height,
-            image_data,
-        )
-        cursor.execute(
-            """INSERT INTO 
-                alert (sent, created_at, device_type, device_id, device_deployed_on, longitude, latitude, face_model_name, face_model_guid, face_model_threshold, mask_model_name, mask_model_guid, mask_model_threshold, probability, image_format, image_width, image_height, image_data) 
-                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) """,
-            vals,
-        )
-        conn.commit()
-        print(f"DB commit took {(time.perf_counter()-start_time)*1000} ms")
+            alert.created_by.type = device["type"]
+            alert.created_by.guid = device["guid"]
+            alert.created_by.enrolled_on = device["enrolled_on"]
 
-    conn.close()
-    return
+            alert.location.latitude = deployment["latitude"]
+            alert.location.longitude = deployment["longitude"]
+
+            alert.face_detection_model.name = face_model
+            alert.face_detection_model.guid = face_model_guid
+            alert.face_detection_model.threshold = face_threshold
+
+            alert.mask_classifier_model.name = mask_model
+            alert.mask_classifier_model.guid = mask_model_guid
+            alert.mask_classifier_model.threshold = mask_threshold
+
+            alert.probability = res
+
+            alert.image.format = "jpeg"
+            region_width: int = region.size[0]
+            region_height: int = region.size[1]
+            image_data = image_to_byte_array(region)
+            start_time = time.perf_counter()
+            cursor = conn.cursor()
+            event_time: str = datetime.datetime.utcnow().strftime(DATE_FORMAT)
+            vals = (
+                ALERT_NOT_SENT,
+                event_time,
+                device["type"],
+                device["guid"],
+                deployment["deployed_on"],
+                deployment["longitude"],
+                deployment["latitude"],
+                face_model,
+                face_model_guid,
+                face_threshold,
+                mask_model,
+                mask_model_guid,
+                mask_threshold,
+                res,
+                "jpeg",
+                region_width,
+                region_height,
+                image_data,
+            )
+            cursor.execute(
+                """INSERT INTO 
+                    alert (sent, created_at, device_type, device_id, device_deployed_on, longitude, latitude, face_model_name, face_model_guid, face_model_threshold, mask_model_name, mask_model_guid, mask_model_threshold, probability, image_format, image_width, image_height, image_data) 
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) """,
+                vals,
+            )
+            conn.commit()
+            print(f"DB commit took {(time.perf_counter()-start_time)*1000} ms")
+            time.sleep(SLEEP_TIME)
 
 
 if __name__ == "__main__":
