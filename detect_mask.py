@@ -113,7 +113,7 @@ def main():
         for idx, face in enumerate(faces):
             print(f"  Face {idx} ")
             print(f"  score: {face.score}")
-            print("  bbox:  {face.bbox}")
+            print(f"  bbox:  {face.bbox}")
 
         image = image.convert("RGB")
         # For each face in the image crop around the ROI and detect if mask or not mask
@@ -155,7 +155,7 @@ def main():
                 )
 
             if not shall_raise_alert:
-                print("no alerts to raise")
+                print(f"No alerts to raise. Proba ({proba}) is below alert threshold ({mask_threshold}\n")
                 time.sleep(SLEEP_TIME)
                 continue
 

@@ -49,4 +49,4 @@ def persist_alert(connection, alert, deployed_on):
         vals,
     )
     connection.commit()
-    print(f"Alert persisted on local storage (transaction took {(time.perf_counter() - start_time) * 1000} ms)")
+    print(f"Alert persisted on local storage (transaction took {(time.perf_counter() - start_time) * 1000} ms)\n")
