@@ -10,9 +10,9 @@ My [alertDispatcher](https://github.com/fpaupier/alertDispatcher) project propos
 # Installation instruction on the Pi
 ### Prerequisite: 
 _Hardware_
- - A Raspberry Pi 4 model B with 4Go of RAM and at least 2Go storage available on the SD card (untested on 2Go RAM models but should work) - **required**.
- - A Camera compatible wth the Pi (I used the Pi Camera Module V2 8MegaPixels) - **required**.
- - [A Coral USB accelerator](https://coral.ai/products/accelerator) to speed up model inference on your Pi - _nice to have but not mandatory._
+ - A [Raspberry Pi 4](https://amzn.to/3iB5VYB) model B with 4Go of RAM and at least 2Go storage available on the SD card (untested on 2Go RAM models but should work) - **required**.
+ - A Camera compatible wth the Pi (I used the [Pi Camera Module V2](https://amzn.to/2SxvIWX)) - **required**.
+ - [A Coral USB accelerator](https://amzn.to/2F8wgzA) to speed up model inference on your Pi - _nice to have but not mandatory._
  - A fan and heat dissipating components are **highly recommended** to avoid overheating (my ventilated Pi in its protective case never goes above 38°C while running the inference code and the [alertDispatcher](https://github.com/fpaupier/alertDispatcher)). 
  
  _Software_
