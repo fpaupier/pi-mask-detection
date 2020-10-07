@@ -1,4 +1,3 @@
-import argparse
 import io
 import os
 import sys
@@ -86,21 +85,11 @@ def main():
     mask_threshold = operational_config["models"]["mask_classifier"]["threshold"]
     deployment: dict = operational_config["deployment"]
 
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument(
-        "-i",
-        "--input",
-        required=True,
-        help="File path of image to process. On edge devise, the path where temp images are stored.",
-    )
-    args = parser.parse_args()
     conn = db.conn
 
     while True:
         # Get camera feed
-        image = get_image(img_path=args.input)
+        image = get_image(img_path="tmp.jpeg")
 
         # Apply face detection
         interpreter = make_interpreter(face_model)
