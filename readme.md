@@ -8,15 +8,45 @@ For each _event_ - _i.e._, someone not wearing their mask - we store an event in
 My [alertDispatcher](https://github.com/fpaupier/alertDispatcher) project proposes a service to publish those events to a Kafka topic.
 
 # Installation instruction on the Pi
-_Model used: Raspberry Pi 4 model B with 4Go of RAM_
+### Prerequisite: 
+_Hardware_
+ - A Raspberry Pi 4 model B with 4Go of RAM and at least 2Go storage available on the SD card (untested on 2Go RAM models but should work) - **required**.
+ - A Camera compatible wth the Pi (I used the Pi Camera Module V2 8MegaPixels) - **required**.
+ - [A Coral USB accelerator](https://coral.ai/products/accelerator) to speed up model inference on your Pi - _nice to have but not mandatory._
+ - A fan and heat dissipating components are **highly recommended** to avoid overheating (my ventilated Pi in its protective case never goes above 38°C while running the inference code and the [alertDispatcher](https://github.com/fpaupier/alertDispatcher)). 
+ 
+ _Software_
+ - You have setup your Pi with an operating system (I used [NOOBS](https://www.raspberrypi.org/downloads/noobs/)).
+ - Your Pi has python 3.7 installed. Run ``` `which python3` -V``` to see which version of python3 you have.
+    ```shell script
+    sudo add-apt-repository ppa:deadsnakes/ppa
+    sudo apt-get update
+    sudo apt-get install python3.7
+    ```
 
-_Python version: 3.7.4_
+## Install steps 
 
-Install TFlite: follow instructions from [Tensorflow Quickstart](https://www.tensorflow.org/lite/guide/python)
+1. Create a virtual env in this project folder, let's call it `venv` and activate it:
+````shell script
+python3 -m venv venv
+source venv/bin/activate
+````
+
+2. Install dependencies
+```shell script
+pip install -r requirements.txt
+```
+
+3. For TensorFlow Lite _(TF Lite)_ runtime on your Pi, check out [Tensorflow Quickstart](https://www.tensorflow.org/lite/guide/python) for the latest instructions.
+Running the following command worked for me to install the TF Lite runtime.  
+```shell script
+pip install https://dl.google.com/coral/python/tflite_runtime-2.1.0.post1-cp37-cp37m-linux_armv7l.whl
+```
+
+4. Install lib for Coral USB accelerator following the [getting started doc of Coral](https://coral.ai/docs/accelerator/get-started)
+
 
 # On my main development machine:
- Install lib for Coral USB accelerator form the [Coral Doc](https://coral.ai/docs/accelerator/get-started)
-
 
 Retraining an image classification model - here binary classifier mask/no_mask [Coral - retrain classification](https://coral.ai/docs/edgetpu/retrain-classification/#requirements)
 
