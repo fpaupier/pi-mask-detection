@@ -70,7 +70,7 @@ For the training, I ued Google AutoML Vision to generate a model compatible with
 This repository hosts the code for the first part of the project; detecting the events at the edge.
 It can be completed by the following projects.
 
-- [alertDispatcher](https://github.com/fpaupier/alertDispatcher) a Go module designed to run at the edge, especially a Raspberry Pie 4 B with 4Go of RAM.
+- [alertDispatcher](https://github.com/fpaupier/alertDispatcher) a Go module designed to run at the edge, especially a Raspberry Pi 4 B with 4Go of RAM.
 The [alertDispatcher](https://github.com/fpaupier/alertDispatcher) polls the local SQLite event store and publishes them to a Kafka topic. 
  
 - [alertIngress](https://github.com/fpaupier/alertIngress) an Go module designed to run on a server, consuming from 
