@@ -38,8 +38,8 @@ def persist_alert(connection, alert, deployed_on):
         alert.mask_classifier_model.threshold,
         alert.probability,
         alert.image.format,
-        alert.image.width,
-        alert.image.height,
+        alert.image.size.width,
+        alert.image.size.height,
         alert.image.data,
     )
     cursor.execute(
