@@ -2,5 +2,4 @@
 .venv
 samples
 dataset
-utils
 .run
