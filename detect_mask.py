@@ -19,7 +19,7 @@ import alert_pb2
 from db import LocalDB
 
 
-ON_DEVICE: bool = True
+ON_DEVICE: bool = True  # Whether we're on the development machine (ON_DEVICE=False), or on the Pi (ON_DEVICE=True)
 ALERT_NOT_SENT: int = 0  # int used as a bool to mean that an alert and new and has not been sent over the wire yet.
 SLEEP_TIME: int = 1  # second
 
