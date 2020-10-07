@@ -65,7 +65,3 @@ def create_alert(img: Image, proba: float, fpath: str = "serializedAlert"):
 
     with open(fpath, "wb+") as fd:
         fd.write(alert.SerializeToString())
-
-
-if __name__ == "__main__":
-    create_alert()
