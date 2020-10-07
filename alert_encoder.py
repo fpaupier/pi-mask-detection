@@ -29,14 +29,25 @@ device: dict = operational_config["device"]
 deployment: dict = operational_config["deployment"]
 
 
-def image_to_byte_array(image: Image, format: str = "jpeg"):
+def image_to_byte_array(image: Image, fmt: str = "jpeg"):
+    """
+
+    Returns:
+
+    """
     img_byte_arr = io.BytesIO()
-    image.save(img_byte_arr, format=format)
+    image.save(img_byte_arr, format=fmt)
     img_byte_arr = img_byte_arr.getvalue()
     return img_byte_arr
 
 
-def create_alert(img: Image, proba: float, fpath: str = "serializedAlert"):
+def create_alert(img: Image, proba: float) -> alert_pb2.Alert:
+    """
+    create_alert is an Alert Factory creating an alert from an image.
+
+    Returns: alert as per the protocol buffer definition.
+
+    """
     alert = alert_pb2.Alert()
 
     alert.event_time = datetime.datetime.utcnow().strftime(DATE_FORMAT)
@@ -63,5 +74,4 @@ def create_alert(img: Image, proba: float, fpath: str = "serializedAlert"):
     alert.image.size.height = img.size[1]
     alert.image.data = image_to_byte_array(img)
 
-    with open(fpath, "wb+") as fd:
-        fd.write(alert.SerializeToString())
+    return alert
