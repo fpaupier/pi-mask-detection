@@ -47,7 +47,7 @@ pip install https://dl.google.com/coral/python/tflite_runtime-2.1.0.post1-cp37-c
 
 
 # On my main development machine:
-
+I provide you with two pretrained models, a widely available face detection model (`ssd_mobilenet_v2`) and a binary classifier _mask/no mask_ I trained. (See under the `models/` folder°. They are optimized to run on the Coral USB edge TPU accelerator.  
 Retraining an image classification model - here binary classifier mask/no_mask [Coral - retrain classification](https://coral.ai/docs/edgetpu/retrain-classification/#requirements)
 
 # Training process for mak/no mask binary classifier
