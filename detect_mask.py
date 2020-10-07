@@ -77,6 +77,7 @@ def get_image(img_path):
 
 
 def main():
+    print("~~~ Started mask detection process ~~~\n")
 
     face_model = operational_config["models"]["face_detection"]["model"]
     face_threshold = operational_config["models"]["face_detection"]["threshold"]
@@ -104,14 +105,15 @@ def main():
         faces = detect.get_output(interpreter, face_threshold, scale)
         print("Face detection inference took: %.2f ms" % (inference_time * 1000))
         if not faces:
-            print("No Faces detected")
+            print("No Faces detected\n")
             time.sleep(SLEEP_TIME)
+            continue
 
-        print("-------RESULTS--------")
-        for face in faces:
-            print("  Face    ")
-            print("  score: ", face.score)
-            print("  bbox:  ", face.bbox)
+        print(f"{len(faces)} Face(s) detected")
+        for idx, face in enumerate(faces):
+            print(f"  Face {idx} ")
+            print(f"  score: {face.score}")
+            print("  bbox:  {face.bbox}")
 
         image = image.convert("RGB")
         # For each face in the image crop around the ROI and detect if mask or not mask
@@ -122,17 +124,11 @@ def main():
         input_details = mask_interpreter.get_input_details()
         output_details = mask_interpreter.get_output_details()
 
-        # check the type of the input tensor
-        floating_model = input_details[0]["dtype"] == np.float32
-
         for face in faces:
             height = input_details[0]["shape"][1]
             width = input_details[0]["shape"][2]
             region = image.crop(face.bbox).resize((width, height))
             input_data = np.expand_dims(region, axis=0)
-
-            if floating_model:
-                input_data = (np.float32(input_data) - args.input_mean) / args.input_std
 
             mask_interpreter.set_tensor(input_details[0]["index"], input_data)
 
@@ -148,10 +144,7 @@ def main():
             for i in top_k:
                 if labels[i] != "no_mask":
                     break
-                if floating_model:
-                    proba = float(results[i])
-                else:
-                    proba = float(results[i] / 255.0)
+                proba = float(results[i] / 255.0)
                 if proba < mask_threshold:
                     break
                 shall_raise_alert = True
