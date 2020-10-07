@@ -1,5 +1,4 @@
 import argparse
-import datetime
 import io
 import os
 import sys
@@ -15,12 +14,10 @@ from PIL import Image
 import tflite_runtime.interpreter as tflite
 import platform
 
-import alert_pb2
-from db import LocalDB
-
+from alert_encoder import create_alert
+from db import LocalDB, persist_alert
 
 ON_DEVICE: bool = True  # Whether we're on the development machine (ON_DEVICE=False), or on the Pi (ON_DEVICE=True)
-ALERT_NOT_SENT: int = 0  # int used as a bool to mean that an alert and new and has not been sent over the wire yet.
 SLEEP_TIME: int = 1  # second
 
 camera = PiCamera()
@@ -87,9 +84,6 @@ def main():
     mask_model = operational_config["models"]["mask_classifier"]["model"]
     mask_labels = operational_config["models"]["mask_classifier"]["labels"]
     mask_threshold = operational_config["models"]["mask_classifier"]["threshold"]
-    mask_model_guid: str = operational_config["models"]["mask_classifier"]["guid"]
-    face_model_guid: str = operational_config["models"]["face_detection"]["guid"]
-    device: dict = operational_config["device"]
     deployment: dict = operational_config["deployment"]
 
     parser = argparse.ArgumentParser(
@@ -166,15 +160,15 @@ def main():
                 if labels[i] != "no_mask":
                     break
                 if floating_model:
-                    res = float(results[i])
+                    proba = float(results[i])
                 else:
-                    res = float(results[i] / 255.0)
-                if res < mask_threshold:
+                    proba = float(results[i] / 255.0)
+                if proba < mask_threshold:
                     break
                 shall_raise_alert = True
                 print(
                     "Alert: no mask with probability {:08.6f}: {}".format(
-                        res, labels[i]
+                        proba, labels[i]
                     )
                 )
 
@@ -183,62 +177,8 @@ def main():
                 time.sleep(SLEEP_TIME)
                 continue
 
-            alert = alert_pb2.Alert()
-
-            alert.event_time = datetime.datetime.utcnow().strftime(DATE_FORMAT)
-
-            alert.created_by.type = device["type"]
-            alert.created_by.guid = device["guid"]
-            alert.created_by.enrolled_on = device["enrolled_on"]
-
-            alert.location.latitude = deployment["latitude"]
-            alert.location.longitude = deployment["longitude"]
-
-            alert.face_detection_model.name = face_model
-            alert.face_detection_model.guid = face_model_guid
-            alert.face_detection_model.threshold = face_threshold
-
-            alert.mask_classifier_model.name = mask_model
-            alert.mask_classifier_model.guid = mask_model_guid
-            alert.mask_classifier_model.threshold = mask_threshold
-
-            alert.probability = res
-
-            alert.image.format = "jpeg"
-            region_width: int = region.size[0]
-            region_height: int = region.size[1]
-            image_data = image_to_byte_array(region)
-            start_time = time.perf_counter()
-            cursor = conn.cursor()
-            event_time: str = datetime.datetime.utcnow().strftime(DATE_FORMAT)
-            vals = (
-                ALERT_NOT_SENT,
-                event_time,
-                device["type"],
-                device["guid"],
-                deployment["deployed_on"],
-                deployment["longitude"],
-                deployment["latitude"],
-                face_model,
-                face_model_guid,
-                face_threshold,
-                mask_model,
-                mask_model_guid,
-                mask_threshold,
-                res,
-                "jpeg",
-                region_width,
-                region_height,
-                image_data,
-            )
-            cursor.execute(
-                """INSERT INTO 
-                    alert (sent, created_at, device_type, device_id, device_deployed_on, longitude, latitude, face_model_name, face_model_guid, face_model_threshold, mask_model_name, mask_model_guid, mask_model_threshold, probability, image_format, image_width, image_height, image_data) 
-                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) """,
-                vals,
-            )
-            conn.commit()
-            print(f"DB commit took {(time.perf_counter()-start_time)*1000} ms")
+            alert = create_alert(region, proba)
+            persist_alert(conn, alert, deployment["deployed_on"])
             time.sleep(SLEEP_TIME)
 
 
