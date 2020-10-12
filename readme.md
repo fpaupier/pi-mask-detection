@@ -40,10 +40,11 @@ python3 -m venv venv
 source venv/bin/activate
 ````
 
-2. Install dependencies
+2. Install dependencies, if on your development machine, use `dev-requirements.txt` instead of `requirements.txt` since `requirements.txt` requires the pi camera module.
 ```shell script
 pip install -r requirements.txt
 ```
+
 
 3. For TensorFlow Lite _(TF Lite)_ runtime on your Pi, check out [Tensorflow Quickstart](https://www.tensorflow.org/lite/guide/python) for the latest instructions.
 Running the following command worked for me to install the TF Lite runtime.  
@@ -52,6 +53,13 @@ pip install https://dl.google.com/coral/python/tflite_runtime-2.1.0.post1-cp37-c
 ```
 
 4. Install lib for Coral USB accelerator following the [getting started doc of Coral](https://coral.ai/docs/accelerator/get-started)
+
+## Running unit tests
+
+Use pytest, cd to the test folder and run pytest:
+```shell script
+cd tests && pytest serialization.py
+``` 
 
 
 # Machine learning models used
