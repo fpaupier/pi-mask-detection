@@ -102,7 +102,7 @@ def main():
         faces = detect.get_output(interpreter, face_threshold, scale)
         print("Face detection inference took: %.2f ms" % (inference_time * 1000))
         if not faces:
-            print("No Faces detected\n")
+            print("No alert to raise\n")
             time.sleep(SLEEP_TIME)
             continue
 
