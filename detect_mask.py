@@ -40,19 +40,16 @@ if "device" not in operational_config:
 DATE_FORMAT: str = "%Y-%m-%d %H:%M:%S.%f"
 
 
-def image_to_byte_array(image: Image, fmt: str = "jpeg"):
-    img_byte_arr = io.BytesIO()
-    image.save(img_byte_arr, format=fmt)
-    img_byte_arr = img_byte_arr.getvalue()
-    return img_byte_arr
-
-
 def load_labels(filename: str):
     with open(filename, "r") as f:
         return [line.strip() for line in f.readlines()]
 
 
 def make_interpreter(model_file: str):
+    """
+    Interpreter factory.
+    Returns a TensorFlow Lite interpreter from a model.
+    """
     model_file, *device = model_file.split("@")
     return tflite.Interpreter(
         model_path=model_file,
@@ -64,11 +61,11 @@ def make_interpreter(model_file: str):
     )
 
 
-def get_image(img_path):
+def get_image(img_path: str = "tmp.jpeg"):
     """
     Get the next image to process for the pipeline.
 
-    Returns: the image opened
+    Returns: the PIL image opened
 
     """
     if ON_DEVICE:
@@ -90,7 +87,7 @@ def main():
 
     while True:
         # Get camera feed
-        image = get_image(img_path="tmp.jpeg")
+        image = get_image()
 
         # Apply face detection
         interpreter = make_interpreter(face_model)
