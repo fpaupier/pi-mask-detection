@@ -61,6 +61,13 @@ Use pytest, cd to the test folder and run pytest:
 cd tests && pytest serialization.py
 ``` 
 
+## Running the project
+Running the `detect_mask.py` script will start capture the video feed from the Pi camera and capture alerts.
+
+```shell script
+python detect_mask.py
+``` 
+
 
 # Machine learning models used
 I provide you with two pretrained models, a widely available face detection model (`ssd_mobilenet_v2`) and a binary classifier _mask/no mask_ I trained. (See under the `models/` folder. They are optimized to run on the Coral USB edge TPU accelerator.
