@@ -6,5 +6,5 @@ PyYAML==5.4
 six==1.15.0
 sqlparse==0.3.1
 protobuf==3.13.0
-tflite-runtime==2.1.0.post1
+tflite-runtime==2.7.0
 picamera==1.13
